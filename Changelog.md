@@ -8,6 +8,7 @@ Compiler Features:
  * Code Generator: Use codecopy for string constants more aggressively.
  * Code Generator: Use binary search for dispatch function if more efficient. The size/speed tradeoff can be tuned using ``--optimize-runs``.
  * SMTChecker: Support mathematical and cryptographic functions in an uninterpreted way.
+ * Standard JSON Interface: disallow unknown keys.
  * Type Checker: Add an additional reason to be displayed when type conversion fails.
 
 
