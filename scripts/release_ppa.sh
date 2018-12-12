@@ -28,6 +28,12 @@
 ##  method			= ftp
 ##  incoming		= ~ethereum/ethereum
 ##  login			= anonymous
+##
+##  [ethereum-static]
+##  fqdn			= ppa.launchpad.net
+##  method			= ftp
+##  incoming		= ~ethereum/ethereum-static
+##  login			= anonymous
 
 ##
 ##############################################################################
@@ -41,33 +47,35 @@ else
     branch=$1
 fi
 
-if [ "$branch" = develop ]
-then
-    pparepo=ethereum-dev
-    ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum-dev/+files
-else
-    pparepo=ethereum
-    ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum/+files
-fi
-
 keyid=70D110489D66E2F6
 email=builds@ethereum.org
 packagename=solc
 
-for distribution in trusty xenial bionic cosmic
+for distribution in xenial bionic cosmic static
 do
 cd /tmp/
 rm -rf $distribution
 mkdir $distribution
 cd $distribution
 
-# Dependency
-if [ $distribution = trusty -o $distribution = vivid ]
+if [ $distribution = static ]
 then
+    ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum-static/+files
+    pparepo=ethereum-static
     Z3DEPENDENCY=""
+    CMAKE_OPTIONS="-DSOLC_LINK_STATIC=On"
 else
+    if [ "$branch" = develop ]
+    then
+        pparepo=ethereum-dev
+        ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum-dev/+files
+    else
+        pparepo=ethereum
+        ppafilesurl=https://launchpad.net/~ethereum/+archive/ubuntu/ethereum/+files
+    fi
     Z3DEPENDENCY="libz3-dev,
                "
+    CMAKE_OPTIONS=""
 fi
 
 # Fetch source
@@ -114,7 +122,7 @@ Priority: extra
 Maintainer: Christian (Buildserver key) <builds@ethereum.org>
 Build-Depends: ${Z3DEPENDENCY}debhelper (>= 9.0.0),
                cmake,
-               g++-8,
+               g++,
                git,
                libgmp-dev,
                libboost-all-dev,
@@ -168,7 +176,7 @@ override_dh_shlibdeps:
 	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info
 
 override_dh_auto_configure:
-	dh_auto_configure -- -DINSTALL_LLLC=Off -DCMAKE_C_COMPILER=gcc-8 -DCMAKE_CXX_COMPILER=g++-8
+	dh_auto_configure -- -DINSTALL_LLLC=Off -DTESTS=OFF ${CMAKE_OPTIONS}
 EOF
 cat <<EOF > debian/copyright
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
@@ -224,7 +232,12 @@ EMAIL="$email" dch -v 1:${debversion}-${versionsuffix} "git build of ${commithas
 debuild -S -d -sa -us -uc
 
 # prepare .changes file for Launchpad
-sed -i -e s/UNRELEASED/${distribution}/ -e s/urgency=medium/urgency=low/ ../*.changes
+if [ $distribution = static ]
+then
+    sed -i -e s/UNRELEASED/cosmic/ -e s/urgency=medium/urgency=low/ ../*.changes
+else
+    sed -i -e s/UNRELEASED/${distribution}/ -e s/urgency=medium/urgency=low/ ../*.changes
+fi
 
 # check if ubuntu already has the source tarball
 (
